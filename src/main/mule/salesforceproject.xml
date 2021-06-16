@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd">
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="93afbb69-a86a-4b9c-b668-e55689388922" >
+		<salesforce:basic-connection username="pavanreddy@kasu.com" password="${salesforce.Password}" securityToken="blw0366KbmUTmuM5Mht8LtpmE" />
+	</salesforce:sfdc-config>
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="0e0f52a1-62b9-4eeb-a3ed-abfe324ade16" >
+		<http:listener-connection host="0.0.0.0" port="${http.port}" />
+	</http:listener-config>
+	<configuration-properties doc:name="Configuration properties" doc:id="fac5e92d-a5d3-4231-a1bd-7a1e6780a66d" file="property.yaml" />
+	<api-gateway:autodiscovery apiId="16973829" ignoreBasePath="true" doc:name="API Autodiscovery" doc:id="d90e3aed-cdc8-4fd6-92c5-cca32e33194c" flowRef="salesforceprojectFlow" />
+	<flow name="salesforceprojectFlow" doc:id="547216e4-a588-4614-9ac6-332a5f600779" >
+		<http:listener doc:name="Listener" doc:id="6b1d7f9b-cb6c-4366-9abb-e8534022e97e" config-ref="HTTP_Listener_config" path="points"/>
+		<salesforce:query doc:name="Query" doc:id="18d09ef2-888e-4a7b-b446-4629d9136e34" config-ref="Salesforce_Config">
+			<salesforce:salesforce-query ><![CDATA[select  Name,cardnumber__c,points__c,preference__c from pavan__c ]]></salesforce:salesforce-query>
+		</salesforce:query>
+		<ee:transform doc:name="Transform Message" doc:id="29fa5f20-c734-47e0-9954-02b0c5bf352a">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload map (value,index)->{
+	"customer name":value.Name,
+	"cardnumber":value.cardnumber__c as Number,
+	"points":value.points__c as Number,
+	"preference":value.preference__c
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<foreach doc:name="For Each" doc:id="c12815ac-e739-4f56-8183-c30c2feb0380" >
+			<choice doc:name="Choice" doc:id="a6599a6b-b4a5-4349-aaa7-6fb99a8829c3" >
+				<when expression='#[payload.preference == "fuel"]'>
+					<flow-ref doc:name="Flow Reference" doc:id="40ab4d7b-49a2-4996-b27d-7fe9580dc9a0" name="fuelapi"/>
+				</when>
+				<when expression='#[payload.preference == "flex"]'>
+					<flow-ref doc:name="Flow Reference" doc:id="9a2819b8-bc78-4b6c-a0f4-b73baa73bfd4" name="flex_api"/>
+				</when>
+				<otherwise >
+					<logger level="INFO" doc:name="Logger" doc:id="ee020dc9-e946-49d2-b49a-9ee894f817b0" message="#[payload]"/>
+				</otherwise>
+			</choice>
+		</foreach>
+		<set-payload value="processed  fuel and flex records" doc:name="Set Payload" doc:id="e4975f97-5fef-4cb1-8b32-8c982fef213f" />
+	</flow>
+	<sub-flow name="flex_api" doc:id="9037c96e-2ad8-41d0-85dc-c49d89eb7020" >
+		<logger level="INFO" doc:name="Logger" doc:id="fa795211-18c1-4915-8004-b51785a4ae55" message="#[payload]"/>
+	</sub-flow>
+	<sub-flow name="fuelapi" doc:id="c92f3c4b-88b4-4500-abd2-96d76dcd551d" >
+		<logger level="INFO" doc:name="Logger" doc:id="1d9317d6-5c14-49bd-83f8-20d71e24e378" message="#[payload]"/>
+	</sub-flow>
+</mule>
